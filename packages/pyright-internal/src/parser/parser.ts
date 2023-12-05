@@ -441,7 +441,27 @@ export class Parser {
                 return this._parseCdefCython();
 
             case KeywordType.Cpdef:
+                let nextKeyToken = this._peekToken(1)
+                if (nextKeyToken.type === TokenType.Keyword && (nextKeyToken as KeywordToken).keywordType ===
+                    KeywordType.Class) {
+                    this._getNextToken();
+                    return this._parseClassDef();
+                }
+
+                let dataType: CythonClassType | undefined = undefined;
+                const structToken = this._peekToken(1);
+                const structName = this._getRangeText(structToken);
+                switch (structName) {
+                    case 'enum':
+                        dataType = CythonClassType.Enum;
+                        break;
+                }
+                if (dataType === CythonClassType.Enum) {
+                    return this._parseStructure(true)
+                }
+
                 return this._parseFunctionDefCython();
+
 
             case KeywordType.Ctypedef:
                 return this._parseCTypeDef();
@@ -5671,10 +5691,10 @@ export class Parser {
 
     // Handle struct, union, enum, fused declaration. "struct name:", "enum name:", "union name:", "fused name:"
     // class module.classname [type structname, ...]:
-    private _parseStructure(): StatementNode | undefined {
+    private _parseStructure(cpdef_enum: boolean = false): StatementNode | undefined {
         let skip = 0;
         const keyword = this._peekKeywordType();
-        if (keyword === KeywordType.Cdef || keyword === KeywordType.Ctypedef) {
+        if (keyword === KeywordType.Cdef || keyword === KeywordType.Ctypedef || cpdef_enum) {
             skip++
         }
         const packedToken = this._peekKeywordType(skip) === KeywordType.Packed ? this._peekToken(skip) : undefined;
